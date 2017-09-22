@@ -1,4 +1,4 @@
-# python-rosbridge
+# python_rosbridge
 
 Python package to communicate with a rosbridge tcp server asynchronously  
 Intended to be use on device that haven't ROS installed  
