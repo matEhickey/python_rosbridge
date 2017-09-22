@@ -13,7 +13,7 @@ Support:
 
 ~~~
 
-from python_rosbridge import RosbridgeParameters, ROS_ServiceCaller, ROS_TopicPublisher
+from python_rosbridge.rosbridge import RosbridgeParameters, ROS_ServiceCaller, ROS_TopicPublisher
 
 RosbridgeParameters.ip = "10.0.0.129"
 RosbridgeParameters.port = 9090
