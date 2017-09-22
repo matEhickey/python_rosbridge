@@ -12,21 +12,38 @@ Support:
 ## How to use
 
 ~~~
+
+from python-rosbridge import RosbridgeParameters, ROS_ServiceCaller, ROS_TopicPublisher
+
+RosbridgeParameters.ip = "10.0.0.129"
+RosbridgeParameters.port = 9090
+
 def callbackReceive(recv):
-    print("\n\nReceive:")
+    print("Receive:")
     print(str(recv)+"\n")
 
+def callbackFailure(e):
+    print("\nFailure:")
+    print(str(e)+"\n")
+
 def callbackReceivePrograms(recv):
-    print("\n\nReceive programs:")
+    print("Received programs:")
     # print(str(recv)+"\n")
     responseDict = json.loads(recv)
     catString = responseDict["values"]["categories"]
     categories = json.loads(catString)
-
-    from pprint import pprint
     pprint(categories)
 
-newthread = ROS_ServiceCaller("/operatorshift/programs",callbackReceivePrograms)
+
+from random import random
+mess = str(random()*1000)
+
+newthread = ROS_ServiceCaller("/operatorshift/programs",callbackReceivePrograms, callbackFailure=callbackFailure,args={}, verbose=True)
 # newthread = ROS_ServiceCaller("/rosapi/get_param",callbackReceive,args={"name":"/rosdistro"})
 # newthread = ROS_TopicPublisher("/operatorshift/logger","std_msgs/String",'{"data":"'+mess+'"}')
+
+#newthread = ROS_TopicSubscriber("/operatorshift/programs",callbackReceive)  # -> not a topic, a service
+# time.sleep(3)
+# newthread.unsuscribe()
+
 ~~~

@@ -11,24 +11,26 @@ from pprint import pprint
 # PY2 = True
 PY2 = False
 
+class RosbridgeParameters:
+    ip="10.0.0.128"
+    port=9091
+
 class _ClientThread(threading.Thread):
 
-    def __init__(self, message, callbackSuccess=None, callbackFailure=None,timeout=None, singleResponse = False):
+    def __init__(self, message, callbackSuccess=None, callbackFailure=None,timeout=None, singleResponse = False,verbose=False):
 
-        ip="10.0.0.128"
-        port=9090
+
 
         threading.Thread.__init__(self)
-        self.ip = ip
-        self.port = port
         self.callbackSuccess = callbackSuccess
         self.callbackFailure = callbackFailure
         self.timeout = timeout
         self.singleResponse = singleResponse
+        self.verbose = verbose
 
         self.message = message if(PY2) else message.encode("utf-8")
 
-        print("Message: "+str(message))
+        if(self.verbose): print("Message: "+str(message))
 
         self.clientsocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
@@ -36,14 +38,14 @@ class _ClientThread(threading.Thread):
 
     def run(self):
         try:
-            self.clientsocket.connect((self.ip, self.port))
+            self.clientsocket.connect((RosbridgeParameters.ip, RosbridgeParameters.port))
         except Exception as e:
             if(self.callbackFailure):
                 self.callbackFailure(e)
             else:
                 print("Socket connection failure : "+str(e))
             return
-        print("Connection: %s %s" % (self.ip, self.port ))
+        if(self.verbose): print("Connection: %s %s" % (RosbridgeParameters.ip, RosbridgeParameters.port ))
 
 
         try:
@@ -73,7 +75,9 @@ class _ClientThread(threading.Thread):
                     return
 
 
-                if(not r == "") : self.callbackSuccess(r)# if(r is not None) else pass
+                if(not r == "") :
+                    if(self.verbose): print("Well received: "+str(r))
+                    self.callbackSuccess(r)# if(r is not None) else pass
                 if(self.singleResponse):
                     self.do_run = False
 
@@ -83,36 +87,40 @@ class _ClientThread(threading.Thread):
 
 
 class ROS_TopicPublisher(_ClientThread):
-    def __init__(self,topic,type,msg, callbackFailure=None):
-        super(ROS_TopicPublisher,self).__init__('{"op":"publish","topic":"'+topic+'","msg":'+msg+'}')
+    def __init__(self,topic,type,msg, callbackFailure=None, verbose=False):
+        super(ROS_TopicPublisher,self).__init__('{"op":"publish","topic":"'+topic+'","msg":'+msg+'}', verbose=verbose)
 
 class ROS_TopicSubscriber(_ClientThread):
-    def __init__(self,topic,callback, callbackFailure=None):
-        super(ROS_TopicSubscriber,self).__init__('{"op":"subscribe","topic":"'+topic+'"}',callbackSuccess=callback)
+    def __init__(self,topic,callback, callbackFailure=None, verbose=False):
+        super(ROS_TopicSubscriber,self).__init__('{"op":"subscribe","topic":"'+topic+'"}',callbackSuccess=callback, verbose=verbose)
     def unsuscribe(self):
         self.do_run = False
         self.clientsocket.shutdown(socket.SHUT_WR)
 
 class ROS_ServiceCaller(_ClientThread):
-    def __init__(self,service,callback, args=None, callbackFailure=None):
+    def __init__(self,service,callback, args=None, callbackFailure=None, verbose=False):
         arguments = "" if args is None else ',"args":'+json.dumps(args)#str(args).replace("'","\"")
-        print("arguments: '"+arguments+"'")
-        super(ROS_ServiceCaller,self).__init__('{"op":"call_service","service":"'+service+'"'+arguments+'}',callbackSuccess=callback, callbackFailure=callbackFailure, singleResponse=True)
+        if(verbose): print("arguments: '"+arguments+"'")
+        super(ROS_ServiceCaller,self).__init__('{"op":"call_service","service":"'+service+'"'+arguments+'}',callbackSuccess=callback, callbackFailure=callbackFailure, singleResponse=True, verbose=verbose)
 
 
 
 if(__name__=="__main__"):
 
+
+    RosbridgeParameters.ip = "10.0.0.129"
+    RosbridgeParameters.port = 9090
+
     def callbackReceive(recv):
-        print("\n\nReceive:")
+        print("Receive:")
         print(str(recv)+"\n")
 
     def callbackFailure(e):
-        print("\n\Failure:")
+        print("\nFailure:")
         print(str(e)+"\n")
 
     def callbackReceivePrograms(recv):
-        print("\n\nReceive programs:")
+        print("Received programs:")
         # print(str(recv)+"\n")
         responseDict = json.loads(recv)
         catString = responseDict["values"]["categories"]
@@ -123,7 +131,7 @@ if(__name__=="__main__"):
     from random import random
     mess = str(random()*1000)
 
-    newthread = ROS_ServiceCaller("/operatorshift/programs",callbackReceivePrograms)
+    newthread = ROS_ServiceCaller("/operatorshift/programs",callbackReceivePrograms, callbackFailure=callbackFailure,args={}, verbose=True)
     # newthread = ROS_ServiceCaller("/rosapi/get_param",callbackReceive,args={"name":"/rosdistro"})
     # newthread = ROS_TopicPublisher("/operatorshift/logger","std_msgs/String",'{"data":"'+mess+'"}')
 
@@ -132,5 +140,3 @@ if(__name__=="__main__"):
     # newthread.unsuscribe()
 
     # newthread = _ClientThread("Test\n")
-
-    print("end")
