@@ -1,0 +1,7 @@
+.*
+!/.gitignore
+*.py[cod]
+*$py.class
+__pycache__
+*~
+*/serverConfig.json

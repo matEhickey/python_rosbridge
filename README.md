@@ -34,11 +34,15 @@ def callbackReceivePrograms(recv):
     categories = json.loads(catString)
     pprint(categories)
 
+def mylogger(message):
+    print("Here a custom logger")
+    print(message)
+
 
 from random import random
 mess = str(random()*1000)
 
-newthread = ROS_ServiceCaller("/operatorshift/programs",callbackReceivePrograms, callbackFailure=callbackFailure,args={}, verbose=True)
+newthread = ROS_ServiceCaller("/operatorshift/programs",callbackReceivePrograms, callbackFailure=callbackFailure,args={}, verbose=True, logger=mylogger)
 # newthread = ROS_ServiceCaller("/rosapi/get_param",callbackReceive,args={"name":"/rosdistro"})
 # newthread = ROS_TopicPublisher("/operatorshift/logger","std_msgs/String",'{"data":"'+mess+'"}')
 
@@ -47,3 +51,6 @@ newthread = ROS_ServiceCaller("/operatorshift/programs",callbackReceivePrograms,
 # newthread.unsuscribe()
 
 ~~~
+
+## Warning
+This is an asynchronous package, and the results callback will be called from a thread. Make sure your actions in them are thread safe (exemple: in kivy you can't manipulate UI from a thread because of the opengl thread, so you have to schedule a main thread event, with Clock.schedule_once. )

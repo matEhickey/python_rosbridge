@@ -1,23 +1,23 @@
 # Python package to communicate with a rosbridge tcp server asynchronously
 # Intended to be use on device that haven't ROS installed
 # Originaly developed by Pygmatec for the operatorshift project, to be use on the android Kivy plateform
+from __future__ import print_function
 
 import socket
 import threading
 import time
 import json
-from pprint import pprint
-
-# PY2 = True
-PY2 = False
 
 class RosbridgeParameters:
     ip="10.0.0.128"
     port=9091
 
+    logger=print
+    PY2=False
+
 class _ClientThread(threading.Thread):
 
-    def __init__(self, message, callbackSuccess=None, callbackFailure=None,timeout=None, singleResponse = False,verbose=False):
+    def __init__(self, message, callbackSuccess=None, callbackFailure=None,timeout=None, singleResponse = False, verbose=False):
 
 
 
@@ -28,9 +28,9 @@ class _ClientThread(threading.Thread):
         self.singleResponse = singleResponse
         self.verbose = verbose
 
-        self.message = message if(PY2) else message.encode("utf-8")
+        self.message = message if(RosbridgeParameters.PY2) else message.encode("utf-8")
 
-        if(self.verbose): print("Message: "+str(message))
+        if(self.verbose): RosbridgeParameters.logger("Message: "+str(message))
 
         self.clientsocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
@@ -43,9 +43,9 @@ class _ClientThread(threading.Thread):
             if(self.callbackFailure):
                 self.callbackFailure(e)
             else:
-                print("Socket connection failure : "+str(e))
+                RosbridgeParameters.logger("Socket connection failure : "+str(e))
             return
-        if(self.verbose): print("Connection: %s %s" % (RosbridgeParameters.ip, RosbridgeParameters.port ))
+        if(self.verbose): RosbridgeParameters.logger("Connection: %s %s" % (RosbridgeParameters.ip, RosbridgeParameters.port ))
 
 
         try:
@@ -54,7 +54,7 @@ class _ClientThread(threading.Thread):
             if(self.callbackFailure):
                 self.callbackFailure(e)
             else:
-                print("Socket send failure"+str(e))
+                RosbridgeParameters.logger("Socket send failure"+str(e))
             return
 
 
@@ -71,12 +71,12 @@ class _ClientThread(threading.Thread):
                     if(self.callbackFailure):
                         self.callbackFailure(e)
                     else:
-                        print("Socket receive failure"+str(e))
+                        RosbridgeParameters.logger("Socket receive failure"+str(e))
                     return
 
 
                 if(not r == "") :
-                    if(self.verbose): print("Well received: "+str(r))
+                    if(self.verbose): RosbridgeParameters.logger("Well received: "+str(r))
                     self.callbackSuccess(r)# if(r is not None) else pass
                 if(self.singleResponse):
                     self.do_run = False
@@ -100,7 +100,7 @@ class ROS_TopicSubscriber(_ClientThread):
 class ROS_ServiceCaller(_ClientThread):
     def __init__(self,service,callback, args=None, callbackFailure=None, verbose=False):
         arguments = "" if args is None else ',"args":'+json.dumps(args)#str(args).replace("'","\"")
-        if(verbose): print("arguments: '"+arguments+"'")
+        if(verbose): RosbridgeParameters.logger("arguments: '"+arguments+"'")
         super(ROS_ServiceCaller,self).__init__('{"op":"call_service","service":"'+service+'"'+arguments+'}',callbackSuccess=callback, callbackFailure=callbackFailure, singleResponse=True, verbose=verbose)
 
 
@@ -112,19 +112,21 @@ if(__name__=="__main__"):
     RosbridgeParameters.port = 9090
 
     def callbackReceive(recv):
-        print("Receive:")
-        print(str(recv)+"\n")
+        RosbridgeParameters.logger("Receive:")
+        RosbridgeParameters.logger(str(recv)+"\n")
 
     def callbackFailure(e):
-        print("\nFailure:")
-        print(str(e)+"\n")
+        RosbridgeParameters.logger("\nFailure:")
+        RosbridgeParameters.logger(str(e)+"\n")
 
     def callbackReceivePrograms(recv):
-        print("Received programs:")
-        # print(str(recv)+"\n")
+        RosbridgeParameters.logger("Received programs:")
+        # RosbridgeParameters.logger(str(recv)+"\n")
         responseDict = json.loads(recv)
         catString = responseDict["values"]["categories"]
         categories = json.loads(catString)
+
+        from pprint import pprint
         pprint(categories)
 
 
