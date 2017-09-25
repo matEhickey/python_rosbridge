@@ -64,20 +64,18 @@ class _ClientThread(threading.Thread):
 
             self.do_run = True
             while(self.do_run):
-                r = None
+                r = ""
                 try:
-                    r = self.clientsocket.recv(2048).decode("utf-8")
+                    r = self.clientsocket.recv(100000000).decode("utf-8")
                 except Exception as e:
                     if(self.callbackFailure):
-                        self.callbackFailure(e)
+                        self.callbackFailure(e,None)
                     else:
                         RosbridgeParameters.logger("Socket receive failure"+str(e))
                     return
 
-
-                if(not r == "") :
-                    if(self.verbose): RosbridgeParameters.logger("Well received: "+str(r))
-                    self.callbackSuccess(r)# if(r is not None) else pass
+                if(self.verbose): RosbridgeParameters.logger("Well received: "+str(r))
+                self.callbackSuccess(r)# if(r is not None) else pass
                 if(self.singleResponse):
                     self.do_run = False
 
