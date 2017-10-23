@@ -65,7 +65,10 @@ class _ClientThread(threading.Thread):
             while(self.do_run):
                 r = ""
                 try:
+                    if(self.verbose): RosbridgeParameters.logger("Try to recv")
                     r = recv_timeout(self.clientsocket,timeout=self.timeout) if(self.timeout) else recv_timeout(self.clientsocket)
+                    if(self.verbose): RosbridgeParameters.logger("After recv")
+
                 except Exception as e:
                     if(self.callbackFailure):
                         self.callbackFailure(e,None)
@@ -74,14 +77,33 @@ class _ClientThread(threading.Thread):
                     return
 
                 if(self.verbose): RosbridgeParameters.logger("Well received: "+str(r))
-                self.callbackSuccess(r)# if(r is not None) else pass
+
+                try:
+                    result = json.loads(r)
+
+                    # if(result == False):
+                    #     e = json.loads(r)["values"]
+                    #     if(self.callbackFailure):
+                    #         self.callbackFailure("python_rosbridge: Result is incorrect: "+str(e))
+                    #     else:
+                    #         RosbridgeParameters.logger("Socket send failure"+str(e))
+                    #     return
+                except Exception as e:
+                    if(self.callbackFailure):
+                        self.callbackFailure(e)
+                    else:
+                        RosbridgeParameters.logger("python-rosbrigde: "+str(e))
+                    # raise Exception("Can't get result from topic")
+
+                if(r is not None and r is not ""): self.callbackSuccess(r)
+
                 if(self.singleResponse):
                     self.do_run = False
 
 
         self.clientsocket.close()
 
-def recv_timeout(the_socket,timeout=2):
+def recv_timeout(the_socket,timeout=0.5):
     #make socket non blocking
     the_socket.setblocking(0)
 
@@ -102,7 +124,7 @@ def recv_timeout(the_socket,timeout=2):
 
         #recv something
         try:
-            data = the_socket.recv(8192)
+            data = the_socket.recv(1024)
             if data:
                 total_data.append(data.decode("utf-8"))
                 #change the beginning time for measurement
@@ -118,21 +140,21 @@ def recv_timeout(the_socket,timeout=2):
 
 
 class ROS_TopicPublisher(_ClientThread):
-    def __init__(self,topic,type,msg, callbackFailure=None, verbose=False):
-        super(ROS_TopicPublisher,self).__init__('{"op":"publish","topic":"'+topic+'","msg":'+msg+'}', verbose=verbose)
+    def __init__(self,topic,type,msg, callbackFailure=None, verbose=False, timeout=0.1):
+        super(ROS_TopicPublisher,self).__init__('{"op":"publish","topic":"'+topic+'","msg":'+msg+'}', verbose=verbose, timeout=timeout)
 
 class ROS_TopicSubscriber(_ClientThread):
-    def __init__(self,topic,callback, callbackFailure=None, verbose=False):
-        super(ROS_TopicSubscriber,self).__init__('{"op":"subscribe","topic":"'+topic+'"}',callbackSuccess=callback, verbose=verbose)
+    def __init__(self,topic,callback, callbackFailure=None, verbose=False, timeout=0.1):
+        super(ROS_TopicSubscriber,self).__init__('{"op":"subscribe","topic":"'+topic+'"}',callbackSuccess=callback, callbackFailure=callbackFailure, verbose=verbose, timeout=timeout)
     def unsuscribe(self):
         self.do_run = False
         self.clientsocket.shutdown(socket.SHUT_WR)
 
 class ROS_ServiceCaller(_ClientThread):
-    def __init__(self,service,callback, args=None, callbackFailure=None, verbose=False):
+    def __init__(self,service,callback, args=None, callbackFailure=None, verbose=False, timeout=0.1):
         arguments = "" if args is None else ',"args":'+json.dumps(args)#str(args).replace("'","\"")
         if(verbose): RosbridgeParameters.logger("arguments: '"+arguments+"'")
-        super(ROS_ServiceCaller,self).__init__('{"op":"call_service","service":"'+service+'"'+arguments+'}',callbackSuccess=callback, callbackFailure=callbackFailure, singleResponse=True, verbose=verbose)
+        super(ROS_ServiceCaller,self).__init__('{"op":"call_service","service":"'+service+'"'+arguments+'}',callbackSuccess=callback, callbackFailure=callbackFailure, singleResponse=True, verbose=verbose, timeout=timeout)
 
 
 
@@ -147,8 +169,8 @@ if(__name__=="__main__"):
         RosbridgeParameters.logger(str(recv)+"\n")
 
     def callbackFailure(e):
-        RosbridgeParameters.logger("\nFailure:")
-        RosbridgeParameters.logger(str(e)+"\n")
+        pass# RosbridgeParameters.logger("\nFailure:")
+        # RosbridgeParameters.logger(str(e)+"\n")
 
     def callbackReceivePrograms(recv):
         RosbridgeParameters.logger("Received programs:")
@@ -164,11 +186,11 @@ if(__name__=="__main__"):
     from random import random
     mess = str(random()*1000)
 
-    newthread = ROS_ServiceCaller("/operatorshift/programs",callbackReceivePrograms, callbackFailure=callbackFailure,args={}, verbose=True)
+    # newthread = ROS_ServiceCaller("/operatorshift/programs",callbackReceivePrograms, callbackFailure=callbackFailure,args={}, verbose=True)
     # newthread = ROS_ServiceCaller("/rosapi/get_param",callbackReceive,args={"name":"/rosdistro"})
     # newthread = ROS_TopicPublisher("/operatorshift/logger","std_msgs/String",'{"data":"'+mess+'"}')
 
-    #newthread = ROS_TopicSubscriber("/operatorshift/programs",callbackReceive)  # -> not a topic, a service
+    newthread = ROS_TopicSubscriber("/operatorshift/step",callbackReceive, callbackFailure=callbackFailure, verbose=False, timeout=0.1)
     # time.sleep(3)
     # newthread.unsuscribe()
 
